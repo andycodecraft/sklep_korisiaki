@@ -15,7 +15,7 @@ class CrawldataPipeline:
         # self.username='root'
         # self.password='Crawler@2025'
 
-        self.TABLE='A3_hochrather'
+        self.TABLE='A18_sklep_korisiaki'
         # ALTER TABLE A3_hochrather AUTO_INCREMENT = 1
         try:
             self.conn = mysql.connector.connect(host=self.HOST,database=self.DATABASE_NAME,user=self.username,password=self.password,charset='utf8',auth_plugin='mysql_native_password')
@@ -36,25 +36,27 @@ class CrawldataPipeline:
         VALUES = ["'" + spider.DATE_CRAWL + "'"]
 
         for k, v in item.items():
-            FIELDS.append(k)
-            if k in ('tech_spec','equipment_fit'):
-                VALUES.append("'" + json.dumps(v).replace("'", "''").replace("\\n", "\\\\n") + "'")
-            elif k in ('oem_quality','qty','discount_price','price'):
-                VALUES.append(str(v))
-            else:
-                VALUES.append("'" + str(v).replace("'", "\'") + "'")
+            if v:
+                FIELDS.append(k)
+                if k in ('reviews'):
+                    VALUES.append("'" + json.dumps(v).replace("'", "''").replace("\\n", "\\\\n") + "'")
+                elif k in ('qty','price', 'review_number'):
+                    VALUES.append(str(v))
+                else:
+                    VALUES.append("'" + str(v).replace("'", "\'") + "'")
         sql = "INSERT INTO `" + self.TABLE + "` (" + (",".join(FIELDS)) + ") VALUES (" + (",".join(VALUES)) + ") " \
             "ON DUPLICATE KEY UPDATE updated_at='" + spider.DATE_CRAWL + "', "
 
         update_fields = []
         for k, v in item.items():
             if k != 'original_page_url':
-                if k in ('tech_spec','equipment_fit'):
-                    update_fields.append(k + "='" + json.dumps(v).replace("'", "''").replace("\\n", "\\\\n") + "'")
-                elif k in ('oem_quality','qty','discount_price','price'):
-                    update_fields.append(k + "=" + str(v))
-                else:
-                    update_fields.append(k + "='" + str(v).replace("'", "\'") + "'")
+                if v:
+                    if k in ('reviews'):
+                        update_fields.append(k + "='" + json.dumps(v).replace("'", "''").replace("\\n", "\\\\n") + "'")
+                    elif k in ('qty','price', 'review_number'):
+                        update_fields.append(k + "=" + str(v))
+                    else:
+                        update_fields.append(k + "='" + str(v).replace("'", "\'") + "'")
 
         sql += ", ".join(update_fields)
 
@@ -62,6 +64,7 @@ class CrawldataPipeline:
             RUNSQL(self.conn, sql)
         except:
             self.conn = mysql.connector.connect(host=self.HOST, database=self.DATABASE_NAME, user=self.username, password=self.password, charset='utf8')
+            print(sql)
             RUNSQL(self.conn, sql)
 
         return item
